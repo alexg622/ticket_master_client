@@ -6,9 +6,31 @@ const CREATE_TICKET = gql`
   mutation createTicket($userId: ID!, $eventId: ID!) {
     createTicket(userId: $userId, eventId: $eventId) {
       id
+      userId
+      eventId
     }
   }
 `
+
+const DELETE_TICKET = gql`
+  mutation deleteTicket($id: ID!) {
+    deleteTicket(id: $id) {
+      id
+    }
+  }
+`
+
+const GET_USER = gql`
+  query user($id: ID!) {
+    user(id: $id) {
+      email
+      upcomingEvents {
+        title
+        id
+      }
+    }
+  }
+`;
 
 export default (props) => {
   const { upcomingEvents, eventId } = props
@@ -19,26 +41,30 @@ export default (props) => {
     createTicket({ variables: { eventId,  userId }})
     .then(res => {
       event.target.innerText = "Booked"
+      props.forceUpdate()
     })
     .catch(err => console.log(err))
   }
 
-  // const handleClickDelete = (deleteTicket, event) => {
-  //   event.persist()
-  //   let ticketToDel = null
-  //   let theEventId = event.id
-  //   let theUserId = localStorage.getItem("id")
-  //   upcomingEvents.forEach(upEv => {
-  //     if(upEv.id === eventId) {
-  //       upEv.tickets.forEach(tic => {
-  //         if(tic.userId === theUserId) ticketToDel = tic.id
-  //       })
-  //     }
-  //   })
-  //   deleteTicket({ variables:  {id: ticketToDel} })
-  //   .then(res => event.target.innerText = "Book")
-  //   .catch(error => console.log(error))
-  // }
+  const handleClickDelete = (deleteTicket, event) => {
+    event.persist()
+    let ticketToDel = null
+    let theEventId = event.id
+    let theUserId = localStorage.getItem("id")
+    upcomingEvents.forEach(upEv => {
+      if(upEv.id === eventId) {
+        upEv.tickets.forEach(tic => {
+          if(tic.userId === theUserId) ticketToDel = tic.id
+        })
+      }
+    })
+    deleteTicket({ variables:  {id: ticketToDel} })
+    .then(res => {
+      event.target.innerText = "Book"
+      props.forceUpdate()
+    })
+    .catch(error => console.log(error))
+  }
 
   const makeEventIds = (upcomingEvents) => {
     return upcomingEvents.map(event => event.id)
@@ -48,35 +74,39 @@ export default (props) => {
     const eventIds = makeEventIds(upcomingEvents)
     if(eventIds.includes(eventId)) {
       return (
-        // <Mutation
-        //   mutation={DELETE_TICKET}
-        //   update={(cache, { data: { deleteTicket } }) => {
-        //   }}
-        // >
-        //   {(deleteTicket, { data }) => {
-        //     return (
-        //       <div className="buy-btn" onClick={(event) => handleClickDelete(deleteTicket, event)}>
-        //         Booked
-        //       </div>
-        //     )
-        //   }}
-        // </Mutation>
-        <div className="buy-btn">
-          Booked
-        </div>
+        <Mutation
+          mutation={DELETE_TICKET}
+          update={(cache, { data }) => {
+            let res = cache.readQuery({query: GET_USER, variables: {id: localStorage.getItem("id")}})
+            cache.writeQuery({
+              query: GET_USER,
+              variables: localStorage.getItem("id"),
+              data
+            })
+          }}
+        >
+          {(deleteTicket, { data }) => {
+            return (
+              <div className="buy-btn" onClick={(event) => handleClickDelete(deleteTicket, event)}>
+                Booked
+              </div>
+            )
+          }}
+        </Mutation>
       )
     } else {
       return (
         <Mutation
           mutation={CREATE_TICKET}
-          // update={(cache, { data: { createTicket } }) => {
-          //   const { user } = cache.readQuery({ query: GET_USER, variables: {id: localStorage.getItem("id")} });
-          //   cache.writeQuery({
-          //     query: GET_USER,
-          //     data: { user: user.upcomingEvents.concat([props.theEvent]) },
-          //   });
-          //   console.log(user.upcomingEvents, props.theEvent);
-          // }}
+          update={(cache, { data }) => {
+            let res = cache.readQuery({query: GET_USER, variables: {id: localStorage.getItem("id")}})
+            cache.writeQuery({
+              query: GET_USER,
+              variables: localStorage.getItem("id"),
+              data
+            })
+            this.forceUpdate()
+          }}
         >
           {(createTicket, { data }) => {
             return (

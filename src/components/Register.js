@@ -7,11 +7,29 @@ const CREATE_USER = gql`
     createUser(email: $email, password: $password) {
       id
       email
+      upcomingEvents {
+        title
+        id
+      }
     }
   }
 `;
 
-export default () => {
+const GET_EVENTS = gql`
+  {
+    events {
+      id
+      title
+      tickets {
+        id
+        userId
+        eventId
+      }
+    }
+  }
+`;
+
+export default (props) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState("")
@@ -23,8 +41,10 @@ export default () => {
     .then( ( {data: { createUser: { id } } } ) => {
       localStorage.setItem("id", id)
       modalContainer.current.style.display = "none"
+      props.forceUpdate()
     })
     .catch(e => {
+      console.log(e);
       let newErrors = e.graphQLErrors[0].message
       setErrors(newErrors)
       setTimeout(() => {
@@ -37,9 +57,12 @@ export default () => {
     <div  ref={modalContainer} className="modal">
       <Mutation
         mutation={CREATE_USER}
-        update={(cache, { data: { createUser } }) => {
-          console.log(createUser);
-          console.log(cache);
+        update={ (cache, { data }) => {
+          let {createUser} = data
+          localStorage.setItem("id", createUser.id)
+          console.log(cache, data);
+          console.log(props);
+          cache.readQuery({query: GET_EVENTS})
         }}
       >
         {(createUser, { data }) => (
